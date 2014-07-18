@@ -1,0 +1,86 @@
+<html>
+    <head>
+
+        <link rel="stylesheet" href="theme/jquery-ui.css"></link>
+        <style type="text/css">
+            html, body {
+                background:	#666;
+                width:		100%;
+                height:		100%;
+                padding:	0;
+                margin:		0;
+                overflow:	auto; /* when page gets too small */
+            }
+           	.pane {
+                display:	none; /* will appear when layout inits */
+            }
+        </style>
+
+        <script type="text/javascript" src="jquery-2.1.1.js"></script>
+        <script type="text/javascript">
+            // source: http://stackoverflow.com/questions/14798403/typeerror-browser-is-undefined
+            var matched, browser;
+
+            jQuery.uaMatch = function( ua ) {
+                ua = ua.toLowerCase();
+
+                var match = /(chrome)[ \/]([\w.]+)/.exec( ua ) ||
+                    /(webkit)[ \/]([\w.]+)/.exec( ua ) ||
+                    /(opera)(?:.*version|)[ \/]([\w.]+)/.exec( ua ) ||
+                    /(msie)[\s?]([\w.]+)/.exec( ua ) ||
+                    /(trident)(?:.*? rv:([\w.]+)|)/.exec( ua ) ||
+                    ua.indexOf("compatible") < 0 && /(mozilla)(?:.*? rv:([\w.]+)|)/.exec( ua ) ||
+                    [];
+
+                return {
+                    browser: match[ 1 ] || "",
+                    version: match[ 2 ] || "0"
+                };
+            };
+
+            matched = jQuery.uaMatch( navigator.userAgent );
+            //IE 11+ fix (Trident)
+            matched.browser = matched.browser == 'trident' ? 'msie' : matched.browser;
+            browser = {};
+
+            if ( matched.browser ) {
+                browser[ matched.browser ] = true;
+                browser.version = matched.version;
+            }
+
+            // Chrome is Webkit, but Webkit is also Safari.
+            if ( browser.chrome ) {
+                browser.webkit = true;
+            } else if ( browser.webkit ) {
+                browser.safari = true;
+            }
+
+            jQuery.browser = browser;
+            console.log(jQuery.browser);
+
+            // Fix for removal of $.curCSS in 1.9
+            jQuery.curCSS = jQuery.css;
+        </script>
+        <script type="text/javascript" src="jquery-ui.js"></script>
+        <script type="text/javascript" src="jquery.layout-1.2.0.js"></script>
+    </head>
+    <body>
+        <div id="game"></div>
+        <div id="log"></div>
+
+        <script type="text/javascript" src="boot.js"></script>
+        <script type="text/javascript" src="underscore.js"></script>
+
+        <script type="text/javascript" src="cards.js"></script>
+        <script type="text/javascript" src="gofish.js"></script>
+
+
+        <script type="text/javascript">
+            console.log(cards);
+            console.log(gofish);
+            var game = new gofish.Game('game');
+            var the_players = ['babs','buster']; // 'plucky'
+            game.initialize(the_players);
+        </script>
+    </body>
+</html>
