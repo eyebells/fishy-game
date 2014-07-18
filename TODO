@@ -1,0 +1,10 @@
+* replace hard-coded HTML in javascript (HTML)
+* fix shifting divs during execution
+* add game timer (slow down auto exec)
+* have one player "play against computer"
+** player can select card value from hand to request from other player
+* implement form of game where can only claim books -- 4 cards with same value
+* better UI layout
+* replace console.log with formal logging strategy
+* represent "ocean"
+* make console output (game play-by-play optional)
