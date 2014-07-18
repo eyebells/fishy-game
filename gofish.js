@@ -50,7 +50,7 @@
 
         this.ui_div = game_div;
         this.game_ui = new gofish.UI(game_div, this.play_game_callback());
-        this.player_interval;
+        this.player_interval = 0;
         this.ocean = [];
         this.players = {};
         this.dealer = new gofish.Dealer();
@@ -60,23 +60,24 @@
             console.log("new game");
         }
 
+        this.game_over_handler = function(player_hand_out) {
+            var
+                the_players = that.players;
+
+            clearInterval(that.player_interval);
+            _.values(the_players).forEach(player_hand_out);
+            console.log("game over");
+        };
+
         this.register_listener_ready_to_start = function(cb) {
             if (cb) {
                 this.notify_on_game_ready.push(cb);
             }
         };
 
-        this.game_over_handler = function(player_hand_out) {
-            var
-              the_players = that.players;
-            clearInterval(that.player_interval);
-            _.values(the_players).forEach(player_hand_out);
-            console.log("game over");
-        };
-
         this.new_card_in_hand_handler = function () {
             var
-              gm_ui = this.game_ui;
+                gm_ui = this.game_ui;
 
             return function(player_name, card) {
                 if (gm_ui) {
@@ -87,7 +88,7 @@
 
         this.new_book_pairs_handler = function () {
             var
-              gm_ui = this.game_ui;
+                gm_ui = this.game_ui;
 
             return function(player_name, book_pr) {
                 if (gm_ui) {
@@ -194,8 +195,8 @@
 
         this.go_fishing = function(the_ocean) {
           var
-            focean     = the_ocean,
-            player_map = that.players;
+              focean     = the_ocean,
+              player_map = that.players;
 
           return function(targets, transfer_method) {
               var
@@ -203,7 +204,6 @@
                 rplayer_name,
                 req_value,
                 req_player,
-                req_value,
                 take_card;
 
               if (targets && targets.hasOwnProperty('self') && targets.hasOwnProperty('player_name') && targets.hasOwnProperty('card_value')) {
@@ -240,14 +240,14 @@
 
             var
                 buffer,
-                curr_player,
-                curr_turn,
+                //curr_player,
+                //curr_turn,
                 do_player_turn,
-                other_plyrs,
-                plyrs,
+                //other_plyrs,
+                // plyrs,
                 players_hands_are_empty,
                 print_player_hand_book,
-                turn_no = 0,
+                // turn_no = 0,
                 turn_no_lock = new gofish.Lock(),
                 turn_names = _.keys(this.players);
 
@@ -263,10 +263,9 @@
 
             players_hands_are_empty = function(f_players) {
 
-                var are_empty =  _.reduce(f_players, function(memo, f_player) {
+                return  _.reduce(f_players, function(memo, f_player) {
                     return f_player.hand_is_empty() && memo;
                 }, true);
-                return are_empty;
             };
 
             do_player_turn = function () {
@@ -332,14 +331,14 @@
     gofish.Turn = function(player, otherPlayers) {
       var
           player_names = [],
-          pname        = '',
-          requested_value,
-          val,
-          req_player,
-          rcard,
-          rplayer_name;
+          //pname        = '',
+          //requested_value,
+          val; //,
+          //req_player,
+          //rcard,
+          //rplayer_name;
 
-        this.req_card;
+        this.req_card = 0;
 
         this.get_player_names = function () {
             return player_names;
@@ -347,6 +346,8 @@
 
         this.card = function() {
             val = null;
+
+            //TODO what does this do? is this.req_card ever truthy
             if (this.req_card && this.req_card.get_value) {
                 val = this.req_card.get_value();
             }
@@ -394,6 +395,10 @@
             }
         };
 
+        /**
+         * Add card to hand
+         * @param card card to add to hand
+         */
         this.addCard = function (card) {
             if (card) {
                 if (!this.hand[card.get_value()]) {
@@ -405,10 +410,19 @@
             }
         };
 
+        /**
+         * Get players name/moniker
+         * @return {String}
+         */
         this.get_name = function () {
             return this.name;
         };
 
+        /**
+         * Indicates if card with specified face value is in hand
+         * @param value face value of targeted card
+         * @return {Boolean} true if hand contains card of specified value
+         */
         this.has_card = function (value) {
            var in_hand = false;
            if (value && this.hand[value] && gofish.isArray(this.hand[value]) && this.hand[value].length > 0) {
@@ -417,14 +431,14 @@
            return in_hand;
         };
 
-        this.accept_card = function (card) {
-           if (card) {
-               this.addCard(card);
-           }
-        };
-
+        /**
+         * Removes card from hand
+         * @param card_value
+         * @return cards to be turned-over
+         */
         this.turnover_card = function(card_value) {
             var the_card = '';
+
             if (this.has_card(card_value)) {
                 the_card = this.hand[card_value].pop()
                 notify_listeners('on_remove', this.notify_on_hand_change, the_card);
@@ -432,6 +446,20 @@
             return the_card;
         };
 
+        /**
+         * Add card to hand
+         * @param card card to add to hand
+         */
+        this.accept_card = function (card) {
+           if (card) {
+               this.addCard(card);
+           }
+        };
+
+        /**
+         * Prints contents of hand to specified buffer
+         * @param buffer
+         */
         this.print_hand = function (buffer) {
             if (buffer && buffer.set) {
                 var value_cards, item, val, str = '';
@@ -452,6 +480,10 @@
             }
         };
 
+        /**
+         * Finds 2 cards with same face value in hand and moves
+         * them to books
+         */
         this.find_books = function() {
             if (this.hand) {
                 var pair, val, value_cards;
@@ -472,6 +504,10 @@
             }
         };
 
+        /**
+         * Writes pairs of cards in 'books' to specified buffer
+         * @param buffer
+         */
         this.print_books = function(buffer) {
             var book, val, value_arr, txt = '';
             if (buffer && buffer.set && this.books) {
@@ -499,7 +535,7 @@
         };
 
         this.take_turn = function(turn, go_fish) {
-            var rcard, hand_values, val, oplayers, target_player, no_card_available;
+            var hand_values, val, oplayers, target_player, no_card_available;
 
             no_card_available = function(playing_hand, card_val) {
                 return !card_val || !playing_hand[card_val] || playing_hand[card_val].length === 0;
@@ -537,9 +573,17 @@
 
     gofish.Dealer = function () {
 
+        /**
+         * Deals cards from deck to players. Number of cards each player
+         * receives depends on the number of players in the game.
+         * @param players
+         * @param cardDeck
+         * @param numCardsPerPlayer
+         * @return {Array} remaining cards not dealt to players
+         */
         this.deal = function (players, cardDeck, numCardsPerPlayer) {
             var fplayers                = players,
-                shuffledDeck,
+                shuffledDeck            = 0,
                 fLeftOvers              = [],
                 fall_players_have_cards = false,
                 fPlayerIndex            = 0,
@@ -570,19 +614,19 @@
 
     gofish.UI = function(game_div, start_cb) {
         var
-            book_div,
-            book_id   = "books",
-            hand_id   = "hand",
-            game_layout,
-            hand_div,
-            plyr_div,
-            start_btn,
-            start_id  = "start",
-            that      = this;
+            book_div     = 0,
+            book_id      = "books",
+            hand_id      = "hand",
+            game_layout  = 0,
+            hand_div     = 0,
+            plyr_div     = 0,
+            start_btn    = 0,
+            start_id     = "start",
+            that         = this;
 
-        this.home_div;
-        this.game_main_div;
-        this.game_ctrl_div;
+        this.home_div = 0;
+        this.game_main_div = 0;
+        this.game_ctrl_div = 0;
         this.plyr_uis = {};
         this.start_game_cb = start_cb;
 
@@ -661,6 +705,7 @@
                 new_pair.css("margin-left", "4px");
                 new_pair.css("margin-right", "2px");
                 for (pr_item in pair) {
+                    //TODO test if pair[pr_item] is inherited from object
                     new_pair.append($("<img/>", {src: pair[pr_item].img_path(), id: pair[pr_item].get_name(), alt: pair[pr_item].get_name()}));
                 }
                 book_div.append(new_pair);

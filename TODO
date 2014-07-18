@@ -8,3 +8,5 @@
 * replace console.log with formal logging strategy
 * represent "ocean"
 * make console output (game play-by-play optional)
+* unit tests
+* make method that should not be exposed "private"
