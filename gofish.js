@@ -3,35 +3,56 @@
 //= requires underscore.js
 
 (function (_, $, cards) {
-    var gofish = {};
+    var gofish = {  };
+
+    gofish.debug_enabled = true;
+
+    gofish.log = function(text) {
+        if (text) {
+            console.log(text);
+        } else {
+            console.log();
+        }
+    };
+
+    gofish.debug = function(text) {
+        if (gofish.debug_enabled) {
+            gofish.log(text);
+        }
+    };
 
     gofish.isArray = function(entity) {
       return entity &&  Object.prototype.toString.call( entity ) === "[object Array]";
     };
 
     gofish.Lock = function() {
-       this.count = 0;
-       this.available = true;
 
-       this.acquire = function() {
-           var acquired = false;
-           if (this.available) {
-               this.available = false;
-               acquired = true;
-           }
-           return acquired;
-       };
+        var lock = {};
 
-       this.get_count = function() {
-           return this.count;
-       };
+        lock.count = 0;
+        lock.available = true;
 
-       this.release = function() {
-           if (!this.available) {
-               this.available = true;
-               this.count++;
-           }
-       };
+        lock.acquire = function() {
+            var acquired = false;
+            if (lock.available) {
+                lock.available = false;
+                acquired = true;
+            }
+            return acquired;
+        };
+
+        lock.get_count = function() {
+            return lock.count;
+        };
+
+        lock.release = function() {
+            if (!lock.available) {
+                lock.available = true;
+                lock.count++;
+            }
+        };
+
+        return lock;
     };
 
     gofish.Game = function (game_div) {
@@ -49,11 +70,11 @@
         };
 
         this.ui_div = game_div;
-        this.game_ui = new gofish.UI(game_div, this.play_game_callback());
+        this.game_ui = gofish.UI(game_div, this.play_game_callback());
         this.player_interval = 0;
         this.ocean = [];
         this.players = {};
-        this.dealer = new gofish.Dealer();
+        this.dealer = gofish.Dealer();
         this.notify_on_game_ready = [];
 
         if (console) {
@@ -69,12 +90,22 @@
             console.log("game over");
         };
 
+        /**
+         * Register callback to be called when ready to start game.
+         */
         this.register_listener_ready_to_start = function(cb) {
             if (cb) {
                 this.notify_on_game_ready.push(cb);
             }
         };
 
+        /**
+         * Returns a UI callback to handle when a player has a new card added to their hand.
+         * Callback accepts two parameters:
+         *  # player_name - the name of the player
+         *  # card - the card to be removed from the player's hand
+         * @returns a callback to handle when a player has a new card
+         */
         this.new_card_in_hand_handler = function () {
             var
                 gm_ui = this.game_ui;
@@ -86,6 +117,14 @@
             };
         };
 
+
+        /**
+         * Returns UI callback to handle when a player has a found new pairs/books in their hand.
+         * Callback accepts two parameters:
+         *  # player_name - the name of the player
+         *  # book_pr - the pair of cards to be added to player's set of pairs/books.
+         * @returns a callback to handle when a player has a found new pairs/books
+         */
         this.new_book_pairs_handler = function () {
             var
                 gm_ui = this.game_ui;
@@ -97,9 +136,17 @@
             };
         };
 
+
+        /**
+         * Returns UI callback to handle when a player has a card removed from their hand.
+         * Callback accepts two parameters:
+         *  # player_name - the name of the player
+         *  # card - the card to be removed from the player's hand
+         * @returns a callback to handle removing card from player's hand
+         */
         this.remove_card_in_hand_handler = function () {
             var
-              gm_ui = this.game_ui;
+                gm_ui = this.game_ui;
 
             return function(player_name, card) {
                 if (gm_ui) {
@@ -108,6 +155,9 @@
             };
         };
 
+        /**
+         * Initializes the game -- creates players, deals cards, sets up ocean.
+         */
         this.initialize = function (names) {
             var cb;
             console.log("initialize game");
@@ -174,9 +224,7 @@
             if (playerCount <= 9) {
                 return 4;
             }
-            if (playerCount > 9) {
-                return 0;
-            }
+            return 0;
         };
 
         this.method = function (name, func) {
@@ -193,6 +241,18 @@
             }
         };
 
+        /**
+         * Returns a function for a player to 'go fish' in the ocean during the player's turn.
+         *
+         * In other words the returned function is a callback meant to be called
+         * during the player turn after the opponent asked for some card value says 'go fish'.
+         *
+         * The callback takes two parameters:
+         *  # targets - a map containing the player_name, card_value, and the player (who has the turn in progress)
+         *  # transfer_method - the means by which the player accepts a new card
+         *               (a function that takes a card as the first argument).
+         * @param the_ocean an array of cards
+         */
         this.go_fishing = function(the_ocean) {
           var
               focean     = the_ocean,
@@ -200,11 +260,11 @@
 
           return function(targets, transfer_method) {
               var
-                ocean_result,
-                rplayer_name,
-                req_value,
-                req_player,
-                take_card;
+                  ocean_result,
+                  rplayer_name,
+                  req_value,
+                  req_player,
+                  take_card;
 
               if (targets && targets.hasOwnProperty('self') && targets.hasOwnProperty('player_name') && targets.hasOwnProperty('card_value')) {
                   req_value = targets['card_value'];
@@ -227,6 +287,10 @@
                   }
                   console.log(targets['self'].get_name() + " must gofish; " + ocean_result);
               }
+
+              // TODO make code more readable
+              // If card taken either from ocean or another player,
+              //  then accept card and find any pairs/books in hand
               if (take_card && targets['self'].hasOwnProperty(transfer_method)) {
                   targets['self'][transfer_method](take_card);
                   targets['self'].find_books();
@@ -248,7 +312,7 @@
                 players_hands_are_empty,
                 print_player_hand_book,
                 // turn_no = 0,
-                turn_no_lock = new gofish.Lock(),
+                turn_no_lock = gofish.Lock(),
                 turn_names = _.keys(this.players);
 
             print_player_hand_book = function (f_player) {
@@ -261,13 +325,27 @@
                 console.log("Player '" + f_player.get_name() + "': " + buffer.text);
             };
 
+            /**
+             * Returns true if all the players in the specified array/list have empty hands
+             * (no more cards to play).
+             * @param f_players {Array} list of players
+             * @return true if all players in list have empty hands; otherwise false
+             */
             players_hands_are_empty = function(f_players) {
 
-                return  _.reduce(f_players, function(memo, f_player) {
-                    return f_player.hand_is_empty() && memo;
-                }, true);
+                return  _.reduce(
+                            f_players,
+                            function(memo, f_player) {
+                              return f_player.hand_is_empty() && memo;
+                            },
+                            true
+                        );
             };
 
+            /**
+             * Returns function to execute player's turn.
+             * @return {Object} function to execute player's turn
+             */
             do_player_turn = function () {
                 var curr_turn,
                     curr_player,
@@ -572,6 +650,7 @@
 
 
     gofish.Dealer = function () {
+        var dealer = {};
 
         /**
          * Deals cards from deck to players. Number of cards each player
@@ -581,7 +660,7 @@
          * @param numCardsPerPlayer
          * @return {Array} remaining cards not dealt to players
          */
-        this.deal = function (players, cardDeck, numCardsPerPlayer) {
+        dealer.deal = function (players, cardDeck, numCardsPerPlayer) {
             var fplayers                = players,
                 shuffledDeck            = 0,
                 fLeftOvers              = [],
@@ -592,7 +671,7 @@
 
             if (cardDeck) {
                 shuffledDeck = cardDeck.shuffle();
-                shuffledDeck.iter(function (card) {
+                shuffledDeck.iter( function (card) {
                     if (fall_players_have_cards) {
                         fLeftOvers.push(card);
                     } else {
@@ -606,41 +685,50 @@
                             fall_players_have_cards = true;
                         }
                     }
-                });
+                } );
             }
             return fLeftOvers;
         };
+        return dealer;
     };
 
     gofish.UI = function(game_div, start_cb) {
         var
-            book_div     = 0,
+            ui            = {
+                home_div      : 0,
+                game_main_div : 0,
+                game_ctrl_div : 0,
+                plyr_uis      : {},
+                start_game_cb : start_cb
+            },
             book_id      = "books",
             hand_id      = "hand",
             game_layout  = 0,
+            book_div     = 0,
             hand_div     = 0,
             plyr_div     = 0,
             start_btn    = 0,
             start_id     = "start",
             that         = this;
 
-        this.home_div = 0;
-        this.game_main_div = 0;
-        this.game_ctrl_div = 0;
-        this.plyr_uis = {};
-        this.start_game_cb = start_cb;
 
-        this.handle_ready_to_start = function() {
+
+        ui.handle_ready_to_start = function() {
             var starter = $("#" + start_id);
             if (starter) {
                 starter.attr("disabled", false);
             }
         };
 
-        this.set_players = function(plyr_names) {
-            var nm, p_nm, p_header;
+        ui.set_players = function(plyr_names) {
+            var nm,
+                p_nm,
+                p_header,
+                book_div     = 0,
+                hand_div     = 0,
+                plyr_div     = 0;
 
-            if (this.game_main_div && plyr_names && gofish.isArray(plyr_names) && plyr_names.length) {
+            if (ui.game_main_div && plyr_names && gofish.isArray(plyr_names) && plyr_names.length) {
                 for (nm in plyr_names) {
                     p_nm = plyr_names[nm];
 
@@ -652,10 +740,10 @@
                     plyr_div.css({ border: "1px solid grey"}); //, float: "left"});
                     plyr_div.css("background-color", "#cc9999");
 
-                    this.plyr_uis[p_nm] = plyr_div;
+                    ui.plyr_uis[p_nm] = plyr_div;
                     p_header = $("<h3/>").text(p_nm);
                     p_header.addClass("ui-widget-header");
-                    this.plyr_uis[p_nm].append(p_header);
+                    ui.plyr_uis[p_nm].append(p_header);
 
                     hand_div = $("<div/>", {'id': hand_id });
                     hand_div.addClass("ui-corner-all");
@@ -663,7 +751,7 @@
                     hand_div.height("200px");
                     hand_div.css("background-color", "#99cc66");
 
-                    this.plyr_uis[p_nm].append(hand_div);
+                    ui.plyr_uis[p_nm].append(hand_div);
 
                     book_div = $("<div/>", {'id': book_id});
                     book_div.addClass("ui-corner-all");
@@ -671,23 +759,25 @@
                     book_div.height("400px");
                     book_div.css("background-color", "#ccccff");
 
-                    this.plyr_uis[p_nm].append(book_div);
+                    ui.plyr_uis[p_nm].append(book_div);
 
-                    this.game_main_div.append(this.plyr_uis[p_nm]);
+                    ui.game_main_div.append(ui.plyr_uis[p_nm]);
                 }
             }
         };
 
-        this.add_card = function (plyr_name, card) {
-            hand_div = $("#" + plyr_name).find("#" + hand_id);
+        ui.add_card = function (plyr_name, card) {
+            var hand_div = $("#" + plyr_name).find("#" + hand_id);
             if (hand_div) {
                 hand_div.append($("<img/>", {src: card.img_path(), id: card.get_name(), alt: plyr_name}));
             }
         };
 
-        this.remove_card = function(plyr_name, card) {
-            var f_card;
-            hand_div = $("#" + plyr_name).find("#" + hand_id);
+        ui.remove_card = function(plyr_name, card) {
+            var
+                f_card   = 0,
+                hand_div = $("#" + plyr_name).find("#" + hand_id);
+
             if (hand_div) {
                 f_card = hand_div.find("#" + card.get_name());
                 if (f_card) {
@@ -696,18 +786,24 @@
                 }
             }
         };
-        this.add_book = function (plyr_name, pair) {
-            var new_pair, pr_item;
-            book_div = $("#" + plyr_name).find("#" + book_id);
+
+        ui.add_book = function (plyr_name, pair) {
+            var
+                new_pair    = 0,
+                pr_item     = 0,
+                book_div    = $("#" + plyr_name).find("#" + book_id);
+
             if (book_div) {
                 new_pair = $("<div/>").width("110px");
                 new_pair.css("display", "inline-block");
                 new_pair.css("margin-left", "4px");
                 new_pair.css("margin-right", "2px");
+
                 for (pr_item in pair) {
                     //TODO test if pair[pr_item] is inherited from object
                     new_pair.append($("<img/>", {src: pair[pr_item].img_path(), id: pair[pr_item].get_name(), alt: pair[pr_item].get_name()}));
                 }
+
                 book_div.append(new_pair);
                 new_pair.hide();
                 new_pair.show("drop",{},500);
@@ -716,34 +812,34 @@
 
         if (game_div) {
 
-            this.home_div = $("<div/>", {id: "container"}).css({"background": "#999", "height": "100%", "margin": "0 auto", "width": "100%", "max-width": "900px", "min-width": "700px"});
-            $("#" + game_div).append(this.home_div);
+            ui.home_div = $("<div/>", {id: "container"}).css({"background": "#999", "height": "100%", "margin": "0 auto", "width": "100%", "max-width": "900px", "min-width": "700px"});
+            $("#" + game_div).append(ui.home_div);
 
-            this.game_main_div = $("<div/>", {id: "l-center"}).addClass("pane ui-layout-center");
-            this.home_div.append(this.game_main_div);
+            ui.game_main_div = $("<div/>", {id: "l-center"}).addClass("pane ui-layout-center");
+            ui.home_div.append(ui.game_main_div);
 
-            this.game_ctrl_div = $("<div/>", {id: "l-north"}).addClass("pane ui-layout-north");
-            this.home_div.append(this.game_ctrl_div);
+            ui.game_ctrl_div = $("<div/>", {id: "l-north"}).addClass("pane ui-layout-north");
+            ui.home_div.append(ui.game_ctrl_div);
 
-            this.home_div.append($("<div/>", {id: "l-south"}).addClass("pane ui-layout-south"));
-            this.home_div.append($("<div/>", {id: "l-east"}).addClass("pane ui-layout-east"));
-            this.home_div.append($("<div/>", {id: "l-west"}).addClass("pane ui-layout-west"));
+            ui.home_div.append($("<div/>", {id: "l-south"}).addClass("pane ui-layout-south"));
+            ui.home_div.append($("<div/>", {id: "l-east"}).addClass("pane ui-layout-east"));
+            ui.home_div.append($("<div/>", {id: "l-west"}).addClass("pane ui-layout-west"));
 
             start_btn = $("<button/>", {id: start_id});
             start_btn.addClass("ui-state-default");
             start_btn.addClass("ui-corner-all");
             start_btn.text("Start Game");
-            start_btn.click(function() {
-              that.start_game_cb();
+            start_btn.click( function() {
+              ui.start_game_cb();
             });
             start_btn.attr("disabled", true);
-            this.game_ctrl_div.append(start_btn);
+            ui.game_ctrl_div.append(start_btn);
 
-            game_layout = this.home_div.layout();
+            game_layout = ui.home_div.layout();
             game_layout.toggle("west");
             game_layout.toggle("east");
         }
-
+        return ui;
     };
 
     if (window && !window.gofish) {
